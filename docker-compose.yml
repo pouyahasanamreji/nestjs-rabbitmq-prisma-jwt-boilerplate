@@ -1,0 +1,78 @@
+services:
+  users:
+    build:
+      context: .
+      dockerfile: ./apps/users/Dockerfile
+      target: development
+    command: sh -c "npm rebuild bcrypt --build-from-source && npm run start:dev users"
+    env_file:
+      - ./apps/users/.env
+    depends_on:
+      - mariadb
+      - rabbitmq
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+  auth:
+    build:
+      context: .
+      dockerfile: ./apps/auth/Dockerfile
+      target: development
+    command: npm run start:dev auth
+    env_file:
+      - ./apps/auth/.env
+    depends_on:
+      - mariadb
+      - rabbitmq
+      - users
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+  gateway:
+    build:
+      context: .
+      dockerfile: ./apps/gateway/Dockerfile
+      target: development
+    command: npm run start:dev gateway
+    env_file:
+      - ./apps/gateway/.env
+    depends_on:
+      - mariadb
+      - rabbitmq
+      - users
+      - auth
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - '3000:3000'
+  rabbitmq:
+    image: rabbitmq:3.13.3-management
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+  mariadb:
+    image: mariadb:latest
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: pos
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    volumes:
+      - db:/var/lib/mysql
+    ports:
+      - '3306:3306'
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    restart: always
+    environment:
+      PMA_HOST: mariadb
+      PMA_USER: user
+      PMA_PASSWORD: password
+    ports:
+      - '8080:80'
+    depends_on:
+      - mariadb
+volumes:
+  db:
