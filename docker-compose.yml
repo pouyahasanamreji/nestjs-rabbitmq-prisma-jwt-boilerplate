@@ -40,7 +40,20 @@ services:
     depends_on:
       - mariadb
       - rabbitmq
-      - users
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+  configurations:
+    build:
+      context: .
+      dockerfile: ./apps/configurations/Dockerfile
+      target: development
+    command: npm run start:dev configurations
+    env_file:
+      - ./apps/configurations/.env
+    depends_on:
+      - mariadb
+      - rabbitmq
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
@@ -55,6 +68,7 @@ services:
     depends_on:
       - mariadb
       - rabbitmq
+      - configurations
       - users
       - auth
     volumes:

@@ -54,6 +54,15 @@
       "compilerOptions": {
         "tsConfigPath": "apps/authorization/tsconfig.app.json"
       }
+    },
+    "configurations": {
+      "type": "application",
+      "root": "apps/configurations",
+      "entryFile": "main",
+      "sourceRoot": "apps/configurations/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/configurations/tsconfig.app.json"
+      }
     }
   }
 }
