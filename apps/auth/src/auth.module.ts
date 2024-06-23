@@ -29,6 +29,9 @@ import { RmqModule } from '@app/common';
     RmqModule.register({
       name: 'USERS',
     }),
+    RmqModule.register({
+      name: 'CONFIGURATIONS',
+    }),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, Logger],

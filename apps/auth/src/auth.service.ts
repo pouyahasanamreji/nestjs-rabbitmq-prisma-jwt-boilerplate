@@ -11,6 +11,8 @@ import {
   RmqService,
   UnauthorizedException,
   ConflictException,
+  UnprocessableEntityException,
+  BadRequestException,
 } from '@app/common';
 import { RmqContext } from '@nestjs/microservices';
 
@@ -21,7 +23,19 @@ export class AuthService {
     private readonly rmqService: RmqService,
     private readonly logger: Logger,
     @Inject('USERS') private readonly usersClient: ClientProxy,
+    @Inject('CONFIGURATIONS')
+    private readonly configurationsClient: ClientProxy,
   ) {}
+
+  async getDefaultRoleId(): Promise<number> {
+    const configuration = await lastValueFrom(
+      this.configurationsClient.send(
+        { cmd: 'get_configuration' },
+        'default_role_id',
+      ),
+    );
+    return parseInt(configuration.value, 10);
+  }
 
   async login(loginDto: any, context: RmqContext) {
     return this.handleTokenGenerationAndError(
@@ -32,8 +46,10 @@ export class AuthService {
   }
 
   async register(registerDto: any, context: RmqContext) {
+    const defaultRoleId = await this.getDefaultRoleId();
+    const userDtoWithRole = { ...registerDto, roleId: defaultRoleId };
     return this.handleTokenGenerationAndError(
-      registerDto,
+      userDtoWithRole,
       'create_user',
       context,
     );
@@ -76,16 +92,30 @@ export class AuthService {
       this.rmqService.ack(context);
       return tokens;
     } catch (error) {
-      if (error.statusCode === 409) {
-        this.rmqService.ack(context);
-        throw new ConflictException('Email already exists.');
-      } else if (error.statusCode === 401) {
-        this.rmqService.ack(context);
-        throw new UnauthorizedException('Credentials are not valid.');
-      }
-
-      this.logger.error(error);
-      throw new InternalServerErrorException('An unexpected error occurred.');
+      this.handleError(error, context);
     }
+  }
+
+  private handleError(error: any, context: RmqContext): never {
+    const knownErrors = [409, 401, 422, 400];
+
+    if (knownErrors.includes(error.statusCode)) {
+      this.rmqService.ack(context);
+    }
+
+    console.log(error);
+
+    if (error.statusCode === 409) {
+      throw new ConflictException(error.message);
+    } else if (error.statusCode === 401) {
+      throw new UnauthorizedException(error.message);
+    } else if (error.statusCode === 422) {
+      throw new UnprocessableEntityException(error.message);
+    } else if (error.statusCode === 400) {
+      throw new BadRequestException(error.message);
+    }
+
+    this.logger.error(error);
+    throw new InternalServerErrorException('An unexpected error occurred.');
   }
 }
