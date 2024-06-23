@@ -25,6 +25,22 @@ services:
       - mariadb
       - rabbitmq
       - users
+      - authorization
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+  authorization:
+    build:
+      context: .
+      dockerfile: ./apps/authorization/Dockerfile
+      target: development
+    command: npm run start:dev authorization
+    env_file:
+      - ./apps/authorization/.env
+    depends_on:
+      - mariadb
+      - rabbitmq
+      - users
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
