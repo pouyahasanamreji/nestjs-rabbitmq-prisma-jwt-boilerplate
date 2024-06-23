@@ -53,4 +53,12 @@ export class UsersController {
     const { email, password } = data;
     return this.usersService.validateUser(email, password, context);
   }
+
+  @MessagePattern({ cmd: 'get_user_permissions' })
+  async getUserPermissions(
+    @Payload() userId: number,
+    @Ctx() context: RmqContext,
+  ) {
+    return this.usersService.getUserPermissions(userId, context);
+  }
 }

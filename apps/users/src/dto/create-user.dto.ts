@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsString,
   MinLength,
+  IsInt,
 } from 'class-validator';
 
 export class CreateUserDto {
@@ -19,4 +20,8 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   name?: string;
+
+  @IsInt()
+  @IsNotEmpty()
+  roleId: number;
 }

@@ -2,12 +2,15 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ConflictException,
   DatabaseService,
   RmqService,
   UnauthorizedException,
+  UnprocessableEntityException,
+  BadRequestException,
 } from '@app/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -25,16 +28,50 @@ export class UsersService {
 
   async create(createUserDto: CreateUserDto, context: RmqContext) {
     try {
+      // Validate roleIds presence
+      if (!createUserDto.roleId) {
+        throw new BadRequestException(
+          'Role ID must be provided and must be a number.',
+        );
+      }
+
+      // Check if all provided role IDs exist
+      const existingRole = await this.prisma.role.findUnique({
+        where: { id: createUserDto.roleId },
+      });
+
+      if (!existingRole) {
+        throw new UnprocessableEntityException(
+          'The provided role does not exist.',
+        );
+      }
+
+      // Hash the user's password
       const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+
+      // Create the user in the database, including their role
       const user = await this.prisma.user.create({
         data: {
-          ...createUserDto,
+          email: createUserDto.email,
           password: hashedPassword,
+          name: createUserDto.name,
+          roleId: createUserDto.roleId,
         },
       });
+
+      // Acknowledge the RabbitMQ context
       this.rmqService.ack(context);
+
+      // Return the created user
       return user;
     } catch (error) {
+      // Handle custom exceptions
+      if (error instanceof RpcException) {
+        this.rmqService.ack(context);
+        throw error;
+      }
+
+      // Handle unique constraint violation for email
       if (
         error instanceof PrismaClientKnownRequestError &&
         error.code === 'P2002'
@@ -42,6 +79,8 @@ export class UsersService {
         this.rmqService.ack(context);
         throw new ConflictException('Email already exists.');
       }
+
+      // Log any other errors and throw an internal server error
       this.logger.error(error);
       throw new InternalServerErrorException('An unexpected error occurred.');
     }
@@ -83,12 +122,10 @@ export class UsersService {
         where: { email },
       });
       if (!user) {
-        this.rmqService.ack(context);
         throw new UnauthorizedException('Credentials are not valid.');
       }
       const passwordIsValid = await bcrypt.compare(password, user.password);
       if (!passwordIsValid) {
-        this.rmqService.ack(context);
         throw new UnauthorizedException('Credentials are not valid.');
       }
       this.rmqService.ack(context);
@@ -100,8 +137,43 @@ export class UsersService {
         (error.getError() as { statusCode: number; message: string })
           .statusCode === 401
       ) {
+        this.rmqService.ack(context);
         throw error;
       }
+
+      this.logger.error(error);
+      throw new InternalServerErrorException('An unexpected error occurred.');
+    }
+  }
+
+  async getUserPermissions(userId: number, context: RmqContext) {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          role: {
+            include: {
+              RolePermission: {
+                include: {
+                  permission: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        throw new NotFoundException(`User with ID ${userId} not found.`);
+      }
+
+      const permissions = user.role.RolePermission.map(
+        (rp) => rp.permission.name,
+      );
+
+      this.rmqService.ack(context);
+      return { permissions };
+    } catch (error) {
       this.logger.error(error);
       throw new InternalServerErrorException('An unexpected error occurred.');
     }
