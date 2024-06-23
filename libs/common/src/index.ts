@@ -8,3 +8,5 @@ export * from './auth/permission.guard';
 export * from './auth/permission.decorator';
 export * from './exceptions/conflict.exception';
 export * from './exceptions/unauthorized.exception';
+export * from './exceptions/unprocessable-entity.exception';
+export * from './exceptions/bad-request.exception';
