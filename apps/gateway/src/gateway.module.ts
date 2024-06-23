@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
-import { AuthModule, RmqModule } from '@app/common';
+import { AuthModule, PermissionGuard, RmqModule } from '@app/common';
 import { AuthController } from './controllers/auth.controller';
 import { UsersController } from './controllers/users.controller';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -25,5 +26,11 @@ import { UsersController } from './controllers/users.controller';
     AuthModule,
   ],
   controllers: [AuthController, UsersController],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: PermissionGuard,
+    },
+  ],
 })
 export class GatewayModule {}
