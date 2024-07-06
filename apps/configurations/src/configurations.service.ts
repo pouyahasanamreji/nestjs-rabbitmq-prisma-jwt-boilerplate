@@ -4,10 +4,11 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { DatabaseService, RmqService } from '@app/common';
+import { ConflictException, DatabaseService, RmqService } from '@app/common';
 import { CreateConfigurationDto } from './dto/create-configuration.dto';
 import { UpdateConfigurationDto } from './dto/update-configuration.dto';
 import { RmqContext } from '@nestjs/microservices';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class ConfigurationsService {
@@ -28,6 +29,15 @@ export class ConfigurationsService {
       this.rmqService.ack(context);
       return configuration;
     } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        this.rmqService.ack(context);
+        throw new ConflictException(
+          'Configuration with the provided key already exists.',
+        );
+      }
       this.logger.error(error);
       throw new InternalServerErrorException('An unexpected error occurred.');
     }
