@@ -10,3 +10,4 @@ export * from './exceptions/conflict.exception';
 export * from './exceptions/unauthorized.exception';
 export * from './exceptions/unprocessable-entity.exception';
 export * from './exceptions/bad-request.exception';
+export * from './exceptions/not-found.exception';
