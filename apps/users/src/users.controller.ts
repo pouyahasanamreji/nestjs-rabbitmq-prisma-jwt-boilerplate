@@ -22,8 +22,12 @@ export class UsersController {
   }
 
   @MessagePattern({ cmd: 'get_all_users' })
-  async findAll(@Ctx() context: RmqContext) {
-    return this.usersService.findAll(context);
+  async findAll(
+    @Payload() data: { page?: number; limit?: number },
+    @Ctx() context: RmqContext,
+  ) {
+    const { page = 1, limit = 10 } = data;
+    return this.usersService.findAll(page, limit, context);
   }
 
   @MessagePattern({ cmd: 'get_user' })
