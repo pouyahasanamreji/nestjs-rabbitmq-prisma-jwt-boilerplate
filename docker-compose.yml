@@ -1,5 +1,6 @@
 services:
   users:
+    container_name: microservice_repo_users_service
     build:
       context: .
       dockerfile: ./apps/users/Dockerfile
@@ -12,8 +13,12 @@ services:
       - rabbitmq
     volumes:
       - .:/usr/src/app
-      - /usr/src/app/node_modules
+      - microservice_node_modules:/usr/src/app/node_modules
+    networks:
+      - microservice_network
+
   auth:
+    container_name: microservice_repo_auth_service
     build:
       context: .
       dockerfile: ./apps/auth/Dockerfile
@@ -28,8 +33,12 @@ services:
       - authorization
     volumes:
       - .:/usr/src/app
-      - /usr/src/app/node_modules
+      - microservice_node_modules:/usr/src/app/node_modules
+    networks:
+      - microservice_network
+
   authorization:
+    container_name: microservice_repo_authorization_service
     build:
       context: .
       dockerfile: ./apps/authorization/Dockerfile
@@ -42,8 +51,12 @@ services:
       - rabbitmq
     volumes:
       - .:/usr/src/app
-      - /usr/src/app/node_modules
+      - microservice_node_modules:/usr/src/app/node_modules
+    networks:
+      - microservice_network
+
   configurations:
+    container_name: microservice_repo_configurations_service
     build:
       context: .
       dockerfile: ./apps/configurations/Dockerfile
@@ -56,8 +69,12 @@ services:
       - rabbitmq
     volumes:
       - .:/usr/src/app
-      - /usr/src/app/node_modules
+      - microservice_node_modules:/usr/src/app/node_modules
+    networks:
+      - microservice_network
+
   gateway:
+    container_name: microservice_repo_gateway_service
     build:
       context: .
       dockerfile: ./apps/gateway/Dockerfile
@@ -73,15 +90,25 @@ services:
       - auth
     volumes:
       - .:/usr/src/app
-      - /usr/src/app/node_modules
+      - microservice_node_modules:/usr/src/app/node_modules
     ports:
       - '3000:3000'
+    networks:
+      - microservice_network
+
   rabbitmq:
+    container_name: microservice_repo_rabbitmq_service
     image: rabbitmq:3.13.3-management
     ports:
       - '5672:5672'
       - '15672:15672'
+    volumes:
+      - microservice_rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - microservice_network
+
   mariadb:
+    container_name: microservice_repo_mariadb_service
     image: mariadb:latest
     restart: always
     environment:
@@ -90,11 +117,16 @@ services:
       MYSQL_USER: user
       MYSQL_PASSWORD: password
     volumes:
-      - db:/var/lib/mysql
+      - microservice_mariadb_data:/var/lib/mysql
     ports:
       - '3306:3306'
+    networks:
+      - microservice_network
+
   phpmyadmin:
+    container_name: microservice_repo_phpmyadmin_service
     image: phpmyadmin/phpmyadmin
+    platform: linux/amd64
     restart: always
     environment:
       PMA_HOST: mariadb
@@ -104,5 +136,16 @@ services:
       - '8080:80'
     depends_on:
       - mariadb
+    networks:
+      - microservice_network
+
 volumes:
-  db:
+  microservice_mariadb_data:
+    name: microservice_mariadb_data
+  microservice_rabbitmq_data:
+    name: microservice_rabbitmq_data
+  microservice_node_modules:
+    name: microservice_node_modules
+
+networks:
+  microservice_network:
